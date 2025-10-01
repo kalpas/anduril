@@ -81,6 +81,10 @@
 #include "fsm/tk.h"
 #include incfile(CONFIGFILE)
 
+#ifdef USE_INDICATOR_LED
+#include "anduril/aux-leds.h"
+#endif
+
 ///// Fireflies-specific configuration
 // disable ramp config
 #ifdef USE_RAMP_CONFIG
@@ -305,7 +309,7 @@ volatile uint8_t number_entry_value;
 void blink_confirm(uint8_t num);
 void blip();
 #if defined(USE_INDICATOR_LED) && defined(TICK_DURING_STANDBY)
-void indicator_blink(uint8_t arg);
+void indicator_blink(uint16_t arg, uint8_t mode);
 #endif
 
 // remember stuff even after battery was changed
@@ -371,17 +375,16 @@ volatile uint8_t ramp_discrete_steps = RAMP_DISCRETE_STEPS;
 uint8_t ramp_discrete_step_size;  // don't set this
 
 #ifdef USE_INDICATOR_LED
-    // bits 2-3 control lockout mode
-    // bits 0-1 control "off" mode
-    // modes are: 0=off, 1=low, 2=high, 3=blinking (if TICK_DURING_STANDBY enabled)
+    // bits 3-5 control lockout mode
+    // bits 0-2 control "off" mode
+    // modes are: 0=off, 1=low, 2=high, 3=blink, 4=10s beacon (blink/beacon require TICK_DURING_STANDBY)
     #ifdef INDICATOR_LED_DEFAULT_MODE
     uint8_t indicator_led_mode = INDICATOR_LED_DEFAULT_MODE;
     #else
         #ifdef USE_INDICATOR_LED_WHILE_RAMPING
-        //uint8_t indicator_led_mode = (1<<2) + 2;
-        uint8_t indicator_led_mode = (2<<2) + 1;
+        uint8_t indicator_led_mode = INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_LOW, INDICATOR_LED_MODE_HIGH);
         #else
-        uint8_t indicator_led_mode = (3<<2) + 1;
+        uint8_t indicator_led_mode = INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_LOW, INDICATOR_LED_MODE_BLINK);
         #endif
     #endif
 #endif
@@ -456,7 +459,7 @@ uint8_t off_state(Event event, uint16_t arg) {
     if (event == EV_enter_state) {
         set_level(0);
         #ifdef USE_INDICATOR_LED
-        indicator_led(indicator_led_mode & 0x03);
+        indicator_led(indicator_led_get_off_mode(indicator_led_mode));
         #endif
         // sleep while off  (lower power use)
         go_to_standby = 1;
@@ -467,7 +470,7 @@ uint8_t off_state(Event event, uint16_t arg) {
         if (arg > TICKS_PER_SECOND*2) {
             go_to_standby = 1;
             #ifdef USE_INDICATOR_LED
-            indicator_led(indicator_led_mode & 0x03);
+            indicator_led(indicator_led_get_off_mode(indicator_led_mode));
             #endif
         }
         return EVENT_HANDLED;
@@ -475,8 +478,8 @@ uint8_t off_state(Event event, uint16_t arg) {
     #if defined(TICK_DURING_STANDBY) && defined(USE_INDICATOR_LED)
     // blink the indicator LED, maybe
     else if (event == EV_sleep_tick) {
-        if ((indicator_led_mode & 0b00000011) == 0b00000011) {
-            indicator_blink(arg);
+        if (indicator_led_get_off_mode(indicator_led_mode) >= INDICATOR_LED_MODE_BLINK) {
+            indicator_blink(arg, indicator_led_get_off_mode(indicator_led_mode));
         }
         return EVENT_HANDLED;
     }
@@ -574,16 +577,8 @@ uint8_t off_state(Event event, uint16_t arg) {
     #ifdef USE_INDICATOR_LED
     // 7 clicks: change indicator LED mode
     else if (event == EV_7clicks) {
-        uint8_t mode = (indicator_led_mode & 3) + 1;
-        #ifdef TICK_DURING_STANDBY
-        mode = mode & 3;
-        #else
-        mode = mode % 3;
-        #endif
-        #ifdef INDICATOR_LED_SKIP_LOW
-        if (mode == 1) { mode ++; }
-        #endif
-        indicator_led_mode = (indicator_led_mode & 0b11111100) | mode;
+        uint8_t mode = indicator_led_next_mode(indicator_led_get_off_mode(indicator_led_mode));
+        indicator_led_mode = indicator_led_set_off_mode(indicator_led_mode, mode);
         indicator_led(mode);
         save_config();
         return EVENT_HANDLED;
@@ -1562,22 +1557,22 @@ uint8_t lockout_state(Event event, uint16_t arg) {
     //  even if the user keeps pressing the button)
     #ifdef USE_INDICATOR_LED
     if (event == EV_enter_state) {
-        indicator_led(indicator_led_mode >> 2);
+        indicator_led(indicator_led_get_lockout_mode(indicator_led_mode));
     } else
     #endif
     if (event == EV_tick) {
         if (arg > TICKS_PER_SECOND*2) {
             go_to_standby = 1;
             #ifdef USE_INDICATOR_LED
-            indicator_led(indicator_led_mode >> 2);
+            indicator_led(indicator_led_get_lockout_mode(indicator_led_mode));
             #endif
         }
         return EVENT_HANDLED;
     }
     #if defined(TICK_DURING_STANDBY) && defined(USE_INDICATOR_LED)
     else if (event == EV_sleep_tick) {
-        if ((indicator_led_mode & 0b00001100) == 0b00001100) {
-            indicator_blink(arg);
+        if (indicator_led_get_lockout_mode(indicator_led_mode) >= INDICATOR_LED_MODE_BLINK) {
+            indicator_blink(arg, indicator_led_get_lockout_mode(indicator_led_mode));
         }
         return EVENT_HANDLED;
     }
@@ -1585,16 +1580,8 @@ uint8_t lockout_state(Event event, uint16_t arg) {
     #ifdef USE_INDICATOR_LED
     // 3 clicks: rotate through indicator LED modes (lockout mode)
     else if (event == EV_3clicks) {
-        uint8_t mode = indicator_led_mode >> 2;
-        #ifdef TICK_DURING_STANDBY
-        mode = (mode + 1) & 3;
-        #else
-        mode = (mode + 1) % 3;
-        #endif
-        #ifdef INDICATOR_LED_SKIP_LOW
-        if (mode == 1) { mode ++; }
-        #endif
-        indicator_led_mode = (mode << 2) + (indicator_led_mode & 0x03);
+        uint8_t mode = indicator_led_next_mode(indicator_led_get_lockout_mode(indicator_led_mode));
+        indicator_led_mode = indicator_led_set_lockout_mode(indicator_led_mode, mode);
         indicator_led(mode);
         save_config();
         return EVENT_HANDLED;
@@ -2106,7 +2093,28 @@ void blip() {
 
 #if defined(USE_INDICATOR_LED) && defined(TICK_DURING_STANDBY)
 // beacon-like mode for the indicator LED
-void indicator_blink(uint8_t arg) {
+void indicator_blink(uint16_t arg, uint8_t mode) {
+    if (mode == INDICATOR_LED_MODE_BEACON) {
+        #ifndef INDICATOR_BEACON_PERIOD_SECONDS
+        #define INDICATOR_BEACON_PERIOD_SECONDS 10
+        #endif
+        #ifndef INDICATOR_BEACON_ON_TICKS
+        #define INDICATOR_BEACON_ON_TICKS ((SLEEP_TICKS_PER_SECOND / 4) ? (SLEEP_TICKS_PER_SECOND / 4) : 1)
+        #endif
+        uint16_t period = INDICATOR_BEACON_PERIOD_SECONDS * SLEEP_TICKS_PER_SECOND;
+        uint16_t on_ticks = INDICATOR_BEACON_ON_TICKS;
+        if (! period) {
+            indicator_led(0);
+        }
+        else if ((arg % period) < on_ticks) {
+            indicator_led(2);
+        }
+        else {
+            indicator_led(0);
+        }
+        return;
+    }
+
     #define USE_FANCIER_BLINKING_INDICATOR
     #ifdef USE_FANCIER_BLINKING_INDICATOR
 

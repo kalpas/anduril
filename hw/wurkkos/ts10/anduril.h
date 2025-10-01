@@ -16,7 +16,7 @@
 // the high button LED mode on this light uses too much power, default to low
 // off mode: low (1)
 // lockout: blinking (3)
-#define INDICATOR_LED_DEFAULT_MODE ((3<<2) + 1)
+#define INDICATOR_LED_DEFAULT_MODE INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_LOW, INDICATOR_LED_MODE_BLINK)
 
 // voltage readings were a little high with the Q8 value
 #undef VOLTAGE_FUDGE_FACTOR
