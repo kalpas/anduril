@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifdef USE_RAMP_CROSSOVER_GATE
+#include "fsm/wdt.h"
+#endif
+
 #ifndef RAMP_SIZE
 #define RAMP_SIZE 150  // default, if not overridden in a driver cfg file
 #endif
@@ -85,6 +89,21 @@
   #define RAMP_DISCRETE_STEPS 7
 #endif
 
+#ifdef USE_RAMP_CROSSOVER_GATE
+  #ifndef RAMP_CROSSOVER_GATE_LEVEL
+    #ifdef MAX_1x7135
+      #define RAMP_CROSSOVER_GATE_LEVEL MAX_1x7135
+    #elif defined(MAX_Nx7135)
+      #define RAMP_CROSSOVER_GATE_LEVEL MAX_Nx7135
+    #else
+      #define RAMP_CROSSOVER_GATE_LEVEL RAMP_SMOOTH_CEIL
+    #endif
+  #endif
+  #ifndef RAMP_CROSSOVER_GATE_TICKS
+    #define RAMP_CROSSOVER_GATE_TICKS ((TICKS_PER_SECOND / 2) ? (TICKS_PER_SECOND / 2) : 1)
+  #endif
+#endif
+
 // mile marker(s) partway up the ramp
 // default: blink only at border between regulated and FET
 #ifdef BLINK_AT_RAMP_MIDDLE
@@ -126,6 +145,12 @@ uint8_t ramp_extras_config_state(Event event, uint16_t arg);
 // (is a no-op for smooth ramp, but limits discrete ramp to only the
 // correct levels for the user's config)
 uint8_t nearest_level(int16_t target);
+
+#ifdef USE_LOWEST_MOON_LEVEL
+void request_lowest_moon_level(void);
+#else
+static inline void request_lowest_moon_level(void) {}
+#endif
 
 // ensure ramp globals are correct
 void ramp_update_config();

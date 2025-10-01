@@ -47,7 +47,16 @@
 #undef MAX_1x7135
 #define MAX_1x7135 88
 
+// align stepped ramp to include a stop at the MAX_1x7135 crossover level
+#undef RAMP_DISCRETE_CEIL
+#define RAMP_DISCRETE_CEIL 122  // 20, 37, 54, 71, 88, 105, 122
+
+// always allow moon mode to use the lowest available floor, even in stepped ramping
+#define USE_LOWEST_MOON_LEVEL
+
 // emit a blip when crossing from the linear channel to the FET
-#undef BLINK_AT_RAMP_CEIL
 #define BLINK_AT_RAMP_MIDDLE
 #define BLINK_AT_RAMP_MIDDLE_1 MAX_1x7135
+
+// add a 500 ms dwell at the MAX_1x7135 crossover while smooth-ramping
+#define USE_RAMP_CROSSOVER_GATE

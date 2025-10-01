@@ -17,3 +17,5 @@ To build the Wurkkos TS21x2 firmware variant locally:
    ```
 
 The successful build produces `hex/anduril.wurkkos-ts21x2.hex` containing the updated ramping profile for the dual-7135 hardware configuration.
+
+In stepped ramping the discrete stops are spaced to land directly on the linear-to-FET crossover, giving levels of `20, 37, 54, 71, 88, 105, 122` so the last purely regulated output is available as a stable preset. Smooth ramping adds a 500 ms “crossover gate” dwell at the same MAX_1x7135 level so the light pauses briefly before opening the FET. Moon mode always engages at the lowest smooth-ramp floor, even when the stepped ramp style is active, so a true moonlight level is available regardless of UI mode.

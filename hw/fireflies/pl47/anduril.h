@@ -15,7 +15,7 @@
 
 // off mode: high (2)
 // lockout: blinking (3)
-#define INDICATOR_LED_DEFAULT_MODE ((3<<2) + 2)
+#define INDICATOR_LED_DEFAULT_MODE INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_HIGH, INDICATOR_LED_MODE_BLINK)
 
 // the "low" mode doesn't work on this light's aux LEDs
 // (but it does work on the switch LEDs)
