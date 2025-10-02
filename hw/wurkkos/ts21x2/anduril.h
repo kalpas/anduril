@@ -6,6 +6,16 @@
 
 #include "sofirn/sp36-t1616/anduril.h"
 
+// The dual-7135 hardware shouldn't blink at the top of the ramp.
+#ifdef BLINK_AT_RAMP_CEIL
+#undef BLINK_AT_RAMP_CEIL
+#endif
+
+// Use only the two moon levels in lockout mode, never manual memory.
+#ifdef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
+#undef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
+#endif
+
 // doubled linear channel current (2x 7135) needs a new mixed-channel ramp
 // level_calc.py 5.7895 2 150 7135 1 0.1 260 FET 1 10 3000 --pwm dyn:74:4096:255:3
 #undef PWM1_LEVELS

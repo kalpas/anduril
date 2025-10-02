@@ -27,7 +27,7 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         }
         // click, hold: highest floor (or manual mem level)
         else {  // 2nd click
-            #ifdef USE_MANUAL_MEMORY
+            #if defined(USE_MANUAL_MEMORY) && defined(USE_MANUAL_MEMORY_IN_LOCKOUT_MODE)
             if (cfg.manual_memory) lvl = cfg.manual_memory;
             else
             #endif
