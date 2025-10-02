@@ -179,6 +179,17 @@ Config cfg = {
         #else
             .button_led_low_ramp_level = 0,  // default
         #endif
+        #ifndef AUX_BUTTON_FET_START_LEVEL
+            #ifdef MAX_1x7135
+                #define AUX_BUTTON_FET_START_LEVEL MAX_1x7135
+            #elif defined(MAX_REGULATED)
+                #define AUX_BUTTON_FET_START_LEVEL MAX_REGULATED
+            #elif defined(DEFAULT_LEVEL)
+                #define AUX_BUTTON_FET_START_LEVEL DEFAULT_LEVEL
+            #else
+                #define AUX_BUTTON_FET_START_LEVEL MAX_LEVEL
+            #endif
+        #endif
         #if (USE_AUX_RGB_LEDS_WHILE_ON + 0)
             // if USE_AUX_RGB_LEDS_WHILE_ON is an int, passes. If blank (undefined
             // or defined with no value), evaluates to `(+0)` which evaluates to
@@ -187,9 +198,9 @@ Config cfg = {
         #else
             #ifdef USE_AUX_RGB_LEDS
                 //#warning "USE_AUX_RGB_LEDS_WHILE_ON defined but has no value. Setting to default value."
-                .button_led_high_ramp_level = 25 - 1,  // default
+                .button_led_high_ramp_level = AUX_BUTTON_FET_START_LEVEL,  // default
             #else
-                .button_led_high_ramp_level = DEFAULT_LEVEL - 1,  // default
+                .button_led_high_ramp_level = AUX_BUTTON_FET_START_LEVEL,  // default
             #endif
         #endif
     #endif

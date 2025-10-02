@@ -11,6 +11,10 @@
 #include "anduril/sunset-timer.h"
 #endif
 
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+#include "fsm/voltage.h"
+#endif
+
 // set level smooth maybe
 void off_state_set_level(uint8_t level);
 
@@ -43,6 +47,9 @@ uint8_t off_state(Event event, uint16_t arg) {
         // sleep while off  (lower power use)
         // (unless delay requested; give the ADC some time to catch up)
         if (! arg) { go_to_standby = 1; }
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+        voltage_frost_reset();
+#endif
         return EVENT_HANDLED;
     }
 
@@ -97,6 +104,11 @@ uint8_t off_state(Event event, uint16_t arg) {
     // hold (initially): go to lowest level (floor), but allow abort for regular click
     else if (event == EV_click1_press) {
         request_lowest_moon_level();
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            off_state_set_level(simple_ui_moon_level());
+        } else
+#endif
         off_state_set_level(nearest_level(1));
         return EVENT_HANDLED;
     }
@@ -113,8 +125,18 @@ uint8_t off_state(Event event, uint16_t arg) {
         #endif
         #else  // B_RELEASE_T or B_TIMEOUT_T
         request_lowest_moon_level();
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            off_state_set_level(simple_ui_moon_level());
+        } else
+#endif
         off_state_set_level(nearest_level(1));
-        #endif
+#endif
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            return EVENT_HANDLED;
+        }
+#endif
         #ifdef USE_RAMP_AFTER_MOON_CONFIG
         if (cfg.dont_ramp_after_moon) {
             return EVENT_HANDLED;
@@ -132,8 +154,15 @@ uint8_t off_state(Event event, uint16_t arg) {
 
     // hold, release quickly: go to lowest level (floor)
     else if (event == EV_click1_hold_release) {
-        request_lowest_moon_level();
-        set_state(steady_state, 1);
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            set_state(steady_state, simple_ui_moon_level());
+        } else
+#endif
+        {
+            request_lowest_moon_level();
+            set_state(steady_state, 1);
+        }
         return EVENT_HANDLED;
     }
 
@@ -154,13 +183,7 @@ uint8_t off_state(Event event, uint16_t arg) {
 
     // 1 click: regular mode
     else if (event == EV_1click) {
-        #if (B_TIMING_ON != B_TIMEOUT_T)
         set_state(steady_state, memorized_level);
-        #else
-        // FIXME: B_TIMEOUT_T breaks manual_memory and manual_memory_timer
-        //        (need to duplicate manual mem logic here, probably)
-        set_state(steady_state, memorized_level);
-        #endif
         return EVENT_HANDLED;
     }
 
@@ -169,25 +192,22 @@ uint8_t off_state(Event event, uint16_t arg) {
         ticks_since_on = 0;  // momentary turbo is definitely "on"
         uint8_t turbo_level;  // how bright is "turbo"?
 
+        #ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            turbo_level = simple_ui_turbo_level();
+        } else
+        #endif
+        {
         #if defined(USE_2C_STYLE_CONFIG)  // user can choose 2C behavior
             uint8_t style_2c = cfg.ramp_2c_style;
-            #ifdef USE_SIMPLE_UI
-            // simple UI has its own turbo config
-            if (cfg.simple_ui_active) style_2c = cfg.ramp_2c_style_simple;
-            #endif
             // 0  = ceiling
             // 1+ = full power
             if (0 == style_2c) turbo_level = nearest_level(MAX_LEVEL);
             else turbo_level = MAX_LEVEL;
         #else
-            // simple UI: ceiling
-            // full UI: full power
-            #ifdef USE_SIMPLE_UI
-            if (cfg.simple_ui_active) turbo_level = nearest_level(MAX_LEVEL);
-            else
-            #endif
             turbo_level = MAX_LEVEL;
         #endif
+        }
 
         off_state_set_level(turbo_level);
         return EVENT_HANDLED;

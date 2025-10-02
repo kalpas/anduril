@@ -27,6 +27,56 @@ static uint8_t crossover_gate_active = 0;
 static uint16_t crossover_gate_ticks = 0;
 #endif
 
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+#include "fsm/voltage.h"
+#endif
+
+#ifdef USE_SIMPLE_UI
+static uint8_t simple_ui_hold_wrap_paused = 0;
+
+uint8_t simple_ui_moon_level(void) {
+    #ifdef USE_RAMP_CONFIG
+        return cfg.ramp_floors[2];
+    #else
+        return ramp_floor;
+    #endif
+}
+
+uint8_t simple_ui_wrap_level(void) {
+    #ifdef SIMPLE_UI_WRAP_STEP
+        return nearest_level(SIMPLE_UI_WRAP_STEP);
+    #else
+        #ifdef USE_RAMP_CONFIG
+            uint8_t mode_min = cfg.ramp_floors[2];
+            uint8_t mode_max = cfg.ramp_ceils[2];
+            uint8_t num_steps = cfg.ramp_stepss[2];
+        #else
+            uint8_t mode_min = SIMPLE_UI_FLOOR;
+            uint8_t mode_max = SIMPLE_UI_CEIL;
+            uint8_t num_steps = SIMPLE_UI_STEPS;
+        #endif
+        if (num_steps <= 1) {
+            return mode_min;
+        }
+        uint16_t ramp_range = mode_max - mode_min;
+        uint16_t wrap_target = mode_min + (uint32_t)ramp_range / (num_steps - 1);
+        return nearest_level(wrap_target);
+    #endif
+}
+
+uint8_t simple_ui_turbo_level(void) {
+    #ifdef SIMPLE_UI_TURBO_STEP
+        return nearest_level(SIMPLE_UI_TURBO_STEP);
+    #else
+        #ifdef USE_RAMP_CONFIG
+            return cfg.ramp_ceils[2];
+        #else
+            return SIMPLE_UI_CEIL;
+        #endif
+    #endif
+}
+#endif
+
 
 uint8_t steady_state(Event event, uint16_t arg) {
     static int8_t ramp_direction = 1;
@@ -88,6 +138,12 @@ uint8_t steady_state(Event event, uint16_t arg) {
         else { turbo_level = MAX_LEVEL; }
     #endif
 
+#ifdef USE_SIMPLE_UI
+    if (cfg.simple_ui_active) {
+        turbo_level = simple_ui_turbo_level();
+    }
+#endif
+
     #ifdef USE_SUNSET_TIMER
     // handle the shutoff timer first
     uint8_t sunset_active = sunset_timer;  // save for comparison
@@ -114,7 +170,11 @@ uint8_t steady_state(Event event, uint16_t arg) {
             arg = memorized_level;
         }
         // remember this level, unless it's moon or turbo
-        if ((arg > mode_min) && (arg < mode_max))
+        if (((arg > mode_min) && (arg < mode_max))
+#ifdef USE_SIMPLE_UI
+            || (cfg.simple_ui_active && (arg == mode_min))
+#endif
+           )
             memorized_level = arg;
         // use the requested level even if not memorized
         arg = nearest_level(arg);
@@ -123,6 +183,11 @@ uint8_t steady_state(Event event, uint16_t arg) {
 #ifdef USE_RAMP_CROSSOVER_GATE
         crossover_gate_active = 0;
         crossover_gate_ticks = 0;
+#endif
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            simple_ui_hold_wrap_paused = 0;
+        }
 #endif
         return EVENT_HANDLED;
     }
@@ -173,6 +238,22 @@ uint8_t steady_state(Event event, uint16_t arg) {
         // ramp infrequently in stepped mode
         if (cfg.ramp_style && (arg % HOLD_TIMEOUT != 0))
             return EVENT_HANDLED;
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+        if ((event == EV_click1_hold)
+                && (!arg)
+                && voltage_frost_offer_active()
+                && (! voltage_frost_is_active())) {
+            blip();
+            delay_4ms(3);
+            blip();
+            voltage_frost_request_enable();
+            emit(EV_voltage_frost_enable, 0);
+        }
+#endif
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active && simple_ui_hold_wrap_paused)
+            return EVENT_HANDLED;
+#endif
         #ifdef USE_RAMP_SPEED_CONFIG
             // ramp slower if user configured things that way
             if ((! cfg.ramp_style) && (arg % ramp_speed)
@@ -196,13 +277,25 @@ uint8_t steady_state(Event event, uint16_t arg) {
         #endif
         // fix ramp direction on first frame if necessary
         if (!arg) {
-            // click, hold should always go down if possible
-            if (event == EV_click2_hold) { ramp_direction = -1; }
-            // make it ramp down instead, if already at max
-            else if (actual_level >= mode_max) { ramp_direction = -1; }
-            // make it ramp up if already at min
-            // (off->hold->stepped_min->release causes this state)
-            else if (actual_level <= mode_min) { ramp_direction = 1; }
+#ifdef USE_SIMPLE_UI
+            if (cfg.simple_ui_active) {
+                ramp_direction = 1;
+                simple_ui_hold_wrap_paused = 0;
+            } else
+#endif
+            {
+#ifdef RAMP_HOLD_ALWAYS_UP
+                ramp_direction = 1;
+#else
+                // click, hold should always go down if possible
+                if (event == EV_click2_hold) { ramp_direction = -1; }
+                // make it ramp down instead, if already at max
+                else if (actual_level >= mode_max) { ramp_direction = -1; }
+                // make it ramp up if already at min
+                // (off->hold->stepped_min->release causes this state)
+                else if (actual_level <= mode_min) { ramp_direction = 1; }
+#endif
+            }
 #ifdef USE_RAMP_CROSSOVER_GATE
             crossover_gate_active = 0;
             crossover_gate_ticks = 0;
@@ -262,6 +355,20 @@ uint8_t steady_state(Event event, uint16_t arg) {
             next_level = planned_level;
         }
 #endif
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active && (ramp_direction > 0)) {
+            if ((actual_level >= mode_max) && (planned_level >= mode_max)) {
+                uint8_t wrap_level = simple_ui_wrap_level();
+                memorized_level = wrap_level;
+                set_level_and_therm_target(wrap_level);
+                simple_ui_hold_wrap_paused = 1;
+                #ifdef USE_SUNSET_TIMER
+                reset_sunset_timer();
+                #endif
+                return EVENT_HANDLED;
+            }
+        }
+#endif
         memorized_level = next_level;
         #if defined(BLINK_AT_RAMP_CEIL) || defined(BLINK_AT_RAMP_MIDDLE)
         // only blink once for each threshold
@@ -315,7 +422,22 @@ uint8_t steady_state(Event event, uint16_t arg) {
     // reverse ramp direction on hold release
     else if ((event == EV_click1_hold_release)
              || (event == EV_click2_hold_release)) {
-        ramp_direction = -ramp_direction;
+        int8_t new_direction;
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) new_direction = 1;
+        else
+#endif
+#ifdef RAMP_HOLD_ALWAYS_UP
+        new_direction = 1;
+#else
+        new_direction = -ramp_direction;
+#endif
+        ramp_direction = new_direction;
+#ifdef USE_SIMPLE_UI
+        if (cfg.simple_ui_active) {
+            simple_ui_hold_wrap_paused = 0;
+        }
+#endif
         #ifdef START_AT_MEMORIZED_LEVEL
         save_config_wl();
         #endif
@@ -327,6 +449,9 @@ uint8_t steady_state(Event event, uint16_t arg) {
     }
 
     else if (event == EV_tick) {
+        #if defined(USE_LVP) && defined(USE_LVP_FROST)
+        voltage_frost_tick();
+        #endif
         // un-reverse after 1 second
         if (arg == AUTO_REVERSE_TIME) ramp_direction = 1;
 

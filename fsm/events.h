@@ -100,6 +100,7 @@ void delay_4ms(uint8_t ms);
 #endif
 #ifdef USE_LVP
 #define EV_voltage_low         (B_SYSTEM|0b00000100)
+#define EV_voltage_frost_enable (B_SYSTEM|0b00001100)
 #endif
 #ifdef USE_THERMAL_REGULATION
 #define EV_temperature_high    (B_SYSTEM|0b00000101)

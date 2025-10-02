@@ -411,9 +411,17 @@ void low_voltage() {
 
     // in normal mode, step down or turn off
     else if (state == steady_state) {
+        #if defined(USE_LVP) && defined(USE_LVP_FROST)
+        if (voltage_frost_is_active()) {
+            return;
+        }
+        #endif
         if (actual_level > 1) {
             uint8_t lvl = (actual_level >> 1) + (actual_level >> 2);
             set_level_and_therm_target(lvl);
+            #if defined(USE_LVP) && defined(USE_LVP_FROST)
+            voltage_frost_note_stepdown();
+            #endif
         }
         else {
             set_state(off_state, 0);
