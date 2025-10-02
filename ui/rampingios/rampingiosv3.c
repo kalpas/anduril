@@ -1154,7 +1154,7 @@ void load_config() {
         therm_cal_offset = eeprom[EEPROM_BYTES_BASE+1];
         #endif
         #ifdef USE_INDICATOR_LED
-        indicator_led_mode = eeprom[EEPROM_BYTES_BASE+EEPROM_THERMAL_BYTES];
+        indicator_led_mode = indicator_led_normalize(eeprom[EEPROM_BYTES_BASE+EEPROM_THERMAL_BYTES]);
         #endif
     }
 }
