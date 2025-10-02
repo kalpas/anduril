@@ -24,19 +24,52 @@
     ((((lock_mode) & INDICATOR_LED_OFF_MASK) << INDICATOR_LED_LOCKOUT_SHIFT) \
      | ((off_mode) & INDICATOR_LED_OFF_MASK))
 
-static inline uint8_t indicator_led_get_off_mode(uint8_t value) {
+static inline uint8_t indicator_led_get_off_field(uint8_t value) {
     return value & INDICATOR_LED_OFF_MASK;
 }
 
-static inline uint8_t indicator_led_get_lockout_mode(uint8_t value) {
+static inline uint8_t indicator_led_get_lock_field(uint8_t value) {
     return (value & INDICATOR_LED_LOCKOUT_MASK) >> INDICATOR_LED_LOCKOUT_SHIFT;
 }
 
+static inline uint8_t indicator_led_normalize(uint8_t value) {
+    uint8_t off = indicator_led_get_off_field(value);
+    uint8_t lock = indicator_led_get_lock_field(value);
+
+    if ((off >= INDICATOR_LED_NUM_MODES) || (lock >= INDICATOR_LED_NUM_MODES)) {
+        uint8_t legacy_off = value & 0x03;
+        uint8_t legacy_lock = (value >> 2) & 0x03;
+        off = legacy_off;
+        lock = legacy_lock;
+    }
+
+    if (off >= INDICATOR_LED_NUM_MODES) {
+        off %= INDICATOR_LED_NUM_MODES;
+    }
+    if (lock >= INDICATOR_LED_NUM_MODES) {
+        lock %= INDICATOR_LED_NUM_MODES;
+    }
+
+    return INDICATOR_LED_COMPOSE(off, lock);
+}
+
+static inline uint8_t indicator_led_get_off_mode(uint8_t value) {
+    return indicator_led_get_off_field(indicator_led_normalize(value));
+}
+
+static inline uint8_t indicator_led_get_lockout_mode(uint8_t value) {
+    return indicator_led_get_lock_field(indicator_led_normalize(value));
+}
+
 static inline uint8_t indicator_led_set_off_mode(uint8_t value, uint8_t mode) {
+    value = indicator_led_normalize(value);
+    mode %= INDICATOR_LED_NUM_MODES;
     return (value & (~INDICATOR_LED_OFF_MASK)) | (mode & INDICATOR_LED_OFF_MASK);
 }
 
 static inline uint8_t indicator_led_set_lockout_mode(uint8_t value, uint8_t mode) {
+    value = indicator_led_normalize(value);
+    mode %= INDICATOR_LED_NUM_MODES;
     return (value & (~INDICATOR_LED_LOCKOUT_MASK))
         | ((mode & INDICATOR_LED_OFF_MASK) << INDICATOR_LED_LOCKOUT_SHIFT);
 }

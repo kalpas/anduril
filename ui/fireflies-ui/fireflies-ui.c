@@ -2169,7 +2169,7 @@ void load_config() {
         therm_cal_offset = eeprom[therm_cal_offset_e];
         #endif
         #ifdef USE_INDICATOR_LED
-        indicator_led_mode = eeprom[indicator_led_mode_e];
+        indicator_led_mode = indicator_led_normalize(eeprom[indicator_led_mode_e]);
         #endif
     }
     #ifdef START_AT_MEMORIZED_LEVEL
