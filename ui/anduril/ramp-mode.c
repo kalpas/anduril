@@ -212,7 +212,12 @@ uint8_t steady_state(Event event, uint16_t arg) {
         // fix ramp direction on first frame if necessary
         if (!arg) {
 #ifdef RAMP_HOLD_ALWAYS_UP
-            ramp_direction = 1;
+            if (event == EV_click2_hold) {
+                // allow double-hold ramping down even when holds default up
+                ramp_direction = -1;
+            } else {
+                ramp_direction = 1;
+            }
 #else
             // click, hold should always go down if possible
             if (event == EV_click2_hold) { ramp_direction = -1; }
