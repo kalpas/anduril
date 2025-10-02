@@ -10,6 +10,9 @@
 #ifdef BLINK_AT_RAMP_CEIL
 #undef BLINK_AT_RAMP_CEIL
 #endif
+#ifdef BLINK_AT_RAMP_CEILING
+#undef BLINK_AT_RAMP_CEILING
+#endif
 
 // Use only the two moon levels in lockout mode, never manual memory.
 #ifdef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
@@ -67,4 +70,7 @@
 // emit a blip when crossing from the linear channel to the FET
 #define BLINK_AT_RAMP_MIDDLE
 #define BLINK_AT_RAMP_MIDDLE_1 MAX_1x7135
+
+// add a 500 ms dwell at the MAX_1x7135 crossover while smooth-ramping
+#define USE_RAMP_CROSSOVER_GATE
 

@@ -286,6 +286,9 @@ uint8_t steady_state(Event event, uint16_t arg) {
                 || (memorized_level == mode_min)
                 #endif
                 )) {
+            #if defined(USE_SMOOTH_STEPS)
+            if (!smooth_steps_in_progress)
+            #endif
             blip();
         }
         #endif
