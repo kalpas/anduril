@@ -12,6 +12,14 @@
 
 #ifdef USE_SMOOTH_STEPS
 #include "anduril/smooth-steps.h"
+
+static bool smooth_steps_transition_pending(uint8_t from_level, uint8_t to_level) {
+    uint8_t diff = (from_level > to_level)
+        ? (from_level - to_level)
+        : (to_level - from_level);
+    return smooth_steps_in_progress
+        || (cfg.smooth_steps_style && (diff > 1));
+}
 #endif
 
 #ifdef USE_LOWEST_MOON_LEVEL
@@ -287,14 +295,17 @@ uint8_t steady_state(Event event, uint16_t arg) {
         }
 #endif
         memorized_level = next_level;
+#if defined(USE_SMOOTH_STEPS)
+        // avoid emitting ramp blips while a smooth-steps animation is active
+        bool smooth_steps_block_blink = smooth_steps_transition_pending(actual_level, memorized_level);
+#endif
         #if defined(BLINK_AT_RAMP_CEIL) || defined(BLINK_AT_RAMP_MIDDLE)
         // only blink once for each threshold
-        // FIXME: blinks at beginning of smooth_steps animation instead
-        // of the end, so it should blink when actual_level reaches a
-        // threshold, instead of when memorized_level does
-        // (one possible fix is to just remove mid-ramp blinks entirely,
-        //  and just blink only when it hits the top while going up)
-        if ((memorized_level != actual_level) && (
+        if ((memorized_level != actual_level)
+            #if defined(USE_SMOOTH_STEPS)
+            && (!smooth_steps_block_blink)
+            #endif
+            && (
                 0  // for easier syntax below
                 #ifdef BLINK_AT_RAMP_MIDDLE_1
                 || (memorized_level == BLINK_AT_RAMP_MIDDLE_1)
@@ -303,16 +314,12 @@ uint8_t steady_state(Event event, uint16_t arg) {
                 || (memorized_level == BLINK_AT_RAMP_MIDDLE_2)
                 #endif
                 #ifdef BLINK_AT_RAMP_CEIL
-                // FIXME: only blink at top when going up, not down
                 || (memorized_level == mode_max)
                 #endif
                 #ifdef BLINK_AT_RAMP_FLOOR
                 || (memorized_level == mode_min)
                 #endif
                 )) {
-            #if defined(USE_SMOOTH_STEPS)
-            if (!smooth_steps_in_progress)
-            #endif
             blip();
         }
         #endif
@@ -322,9 +329,12 @@ uint8_t steady_state(Event event, uint16_t arg) {
         uint8_t nearest = nearest_level((int16_t)actual_level);
         cfg.ramp_style = foo;
         // only blink once for each threshold
-        if ((memorized_level != actual_level) &&
-                    (cfg.ramp_style == 0) &&
-                    (memorized_level == nearest)
+        if ((memorized_level != actual_level)
+                    && (cfg.ramp_style == 0)
+#if defined(USE_SMOOTH_STEPS)
+                    && (!smooth_steps_block_blink)
+#endif
+                    && (memorized_level == nearest)
                     )
         {
             blip();
@@ -820,10 +830,7 @@ void set_level_and_therm_target(uint8_t level) {
     #ifdef USE_SMOOTH_STEPS
         // if adjusting by more than 1 ramp level,
         // animate the step change (if smooth steps enabled)
-        uint8_t diff = (level > actual_level)
-            ? (level - actual_level) : (actual_level - level);
-        if (smooth_steps_in_progress
-            || (cfg.smooth_steps_style && (diff > 1)))
+        if (smooth_steps_transition_pending(actual_level, level))
             set_level_smooth(level, 4);
         else
     #endif
