@@ -20,7 +20,8 @@ static bool frost_enabled = false;
 
 void voltage_frost_note_stepdown(void) {
     frost_offer_ticks = FROST_WINDOW_TICKS;
-    frost_request_pending = false;
+    // don't cancel a queued override request when another stepdown arrives
+    // before the deferred enable event runs
 }
 
 void voltage_frost_tick(void) {
