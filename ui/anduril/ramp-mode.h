@@ -152,12 +152,6 @@ void request_lowest_moon_level(void);
 static inline void request_lowest_moon_level(void) {}
 #endif
 
-#ifdef USE_SIMPLE_UI
-uint8_t simple_ui_moon_level(void);
-uint8_t simple_ui_wrap_level(void);
-uint8_t simple_ui_turbo_level(void);
-#endif
-
 // ensure ramp globals are correct
 void ramp_update_config();
 

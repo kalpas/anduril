@@ -12,24 +12,6 @@
 // Always ramp upward on holds; disable the usual direction reversing.
 #define RAMP_HOLD_ALWAYS_UP
 
-// Configure the Simple UI stepped levels and turbo ceiling.
-#ifdef SIMPLE_UI_FLOOR
-#undef SIMPLE_UI_FLOOR
-#endif
-#define SIMPLE_UI_FLOOR 20
-
-#ifdef SIMPLE_UI_CEIL
-#undef SIMPLE_UI_CEIL
-#endif
-#define SIMPLE_UI_CEIL 122
-
-#ifdef SIMPLE_UI_STEPS
-#undef SIMPLE_UI_STEPS
-#endif
-#define SIMPLE_UI_STEPS 4
-
-#define SIMPLE_UI_TURBO_STEP 122
-
 // Prefer the advanced UI and discrete ramping out of the box.
 #ifdef SIMPLE_UI_ACTIVE
 #undef SIMPLE_UI_ACTIVE

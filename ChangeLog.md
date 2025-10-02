@@ -14,18 +14,12 @@ formats:
 
 # Next
 
-- Changed the Simple UI to FC11C-style behavior with hold-from-off staying on
-  moon, one-way upward ramping that wraps to the first regular level, and a
-  per-host Simple UI turbo ceiling instead of exposing true turbo.
 - &wurkkos-ts21x2: Added a temporary "Frost" mode which suppresses automatic
   low-voltage step-downs after the user manually overrides the first reduction.
   Hold the button within five seconds of the first LVP dimming to enable it; a
   quick double blip confirms activation and the override lasts until the light
   is turned off.  Also removed direction reversing in ramp holds so the button
   always ramps upward on this model.
-- &wurkkos-ts21x2: Tuned the Simple UI profile to provide dedicated moon / low
-  / med / high steps, keep the high level below true turbo, and map Simple UI
-  turbo (2C) to ramp step 122 so the driver’s full turbo remains advanced-only.
 - Changed aux / button LED behavior so it now stays on "low" throughout the
   linear regulation range and switches to "high" only after the FET channel
   engages.
