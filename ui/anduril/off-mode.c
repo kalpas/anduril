@@ -11,6 +11,10 @@
 #include "anduril/sunset-timer.h"
 #endif
 
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+#include "fsm/voltage.h"
+#endif
+
 // set level smooth maybe
 void off_state_set_level(uint8_t level);
 
@@ -43,6 +47,9 @@ uint8_t off_state(Event event, uint16_t arg) {
         // sleep while off  (lower power use)
         // (unless delay requested; give the ADC some time to catch up)
         if (! arg) { go_to_standby = 1; }
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+        voltage_frost_reset();
+#endif
         return EVENT_HANDLED;
     }
 
@@ -114,7 +121,7 @@ uint8_t off_state(Event event, uint16_t arg) {
         #else  // B_RELEASE_T or B_TIMEOUT_T
         request_lowest_moon_level();
         off_state_set_level(nearest_level(1));
-        #endif
+#endif
         #ifdef USE_RAMP_AFTER_MOON_CONFIG
         if (cfg.dont_ramp_after_moon) {
             return EVENT_HANDLED;
@@ -154,13 +161,7 @@ uint8_t off_state(Event event, uint16_t arg) {
 
     // 1 click: regular mode
     else if (event == EV_1click) {
-        #if (B_TIMING_ON != B_TIMEOUT_T)
         set_state(steady_state, memorized_level);
-        #else
-        // FIXME: B_TIMEOUT_T breaks manual_memory and manual_memory_timer
-        //        (need to duplicate manual mem logic here, probably)
-        set_state(steady_state, memorized_level);
-        #endif
         return EVENT_HANDLED;
     }
 

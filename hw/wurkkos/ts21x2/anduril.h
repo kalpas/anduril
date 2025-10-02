@@ -6,6 +6,12 @@
 
 #include "sofirn/sp36-t1616/anduril.h"
 
+// Enable the temporary low-voltage override used for the Frost mode UI.
+#define USE_LVP_FROST
+
+// Always ramp upward on holds; disable the usual direction reversing.
+#define RAMP_HOLD_ALWAYS_UP
+
 // Prefer the advanced UI and discrete ramping out of the box.
 #ifdef SIMPLE_UI_ACTIVE
 #undef SIMPLE_UI_ACTIVE

@@ -27,6 +27,9 @@ static uint8_t crossover_gate_active = 0;
 static uint16_t crossover_gate_ticks = 0;
 #endif
 
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+#include "fsm/voltage.h"
+#endif
 
 uint8_t steady_state(Event event, uint16_t arg) {
     static int8_t ramp_direction = 1;
@@ -173,6 +176,18 @@ uint8_t steady_state(Event event, uint16_t arg) {
         // ramp infrequently in stepped mode
         if (cfg.ramp_style && (arg % HOLD_TIMEOUT != 0))
             return EVENT_HANDLED;
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+        if ((event == EV_click1_hold)
+                && (!arg)
+                && voltage_frost_offer_active()
+                && (! voltage_frost_is_active())) {
+            blip();
+            delay_4ms(3);
+            blip();
+            voltage_frost_request_enable();
+            emit(EV_voltage_frost_enable, 0);
+        }
+#endif
         #ifdef USE_RAMP_SPEED_CONFIG
             // ramp slower if user configured things that way
             if ((! cfg.ramp_style) && (arg % ramp_speed)
@@ -196,6 +211,14 @@ uint8_t steady_state(Event event, uint16_t arg) {
         #endif
         // fix ramp direction on first frame if necessary
         if (!arg) {
+#ifdef RAMP_HOLD_ALWAYS_UP
+            if (event == EV_click2_hold) {
+                // allow double-hold ramping down even when holds default up
+                ramp_direction = -1;
+            } else {
+                ramp_direction = 1;
+            }
+#else
             // click, hold should always go down if possible
             if (event == EV_click2_hold) { ramp_direction = -1; }
             // make it ramp down instead, if already at max
@@ -203,6 +226,7 @@ uint8_t steady_state(Event event, uint16_t arg) {
             // make it ramp up if already at min
             // (off->hold->stepped_min->release causes this state)
             else if (actual_level <= mode_min) { ramp_direction = 1; }
+#endif
 #ifdef USE_RAMP_CROSSOVER_GATE
             crossover_gate_active = 0;
             crossover_gate_ticks = 0;
@@ -315,7 +339,13 @@ uint8_t steady_state(Event event, uint16_t arg) {
     // reverse ramp direction on hold release
     else if ((event == EV_click1_hold_release)
              || (event == EV_click2_hold_release)) {
-        ramp_direction = -ramp_direction;
+        int8_t new_direction;
+#ifdef RAMP_HOLD_ALWAYS_UP
+        new_direction = 1;
+#else
+        new_direction = -ramp_direction;
+#endif
+        ramp_direction = new_direction;
         #ifdef START_AT_MEMORIZED_LEVEL
         save_config_wl();
         #endif
@@ -327,6 +357,9 @@ uint8_t steady_state(Event event, uint16_t arg) {
     }
 
     else if (event == EV_tick) {
+        #if defined(USE_LVP) && defined(USE_LVP_FROST)
+        voltage_frost_tick();
+        #endif
         // un-reverse after 1 second
         if (arg == AUTO_REVERSE_TIME) ramp_direction = 1;
 

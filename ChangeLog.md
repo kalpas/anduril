@@ -14,6 +14,16 @@ formats:
 
 # Next
 
+- &wurkkos-ts21x2: Added a temporary "Frost" mode which suppresses automatic
+  low-voltage step-downs after the user manually overrides the first reduction.
+  Hold the button within five seconds of the first LVP dimming to enable it; a
+  quick double blip confirms activation and the override lasts until the light
+  is turned off.  Also removed direction reversing in ramp holds so the button
+  always ramps upward on this model.
+- Changed aux / button LED behavior so it now stays on "low" throughout the
+  linear regulation range and switches to "high" only after the FET channel
+  engages.
+
 # 2025-07-07
 
 Merged a few pull requests, minor improvements, nothing big.  Users can now

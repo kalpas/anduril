@@ -6,13 +6,25 @@
 
 #ifdef USE_RAMPING
 
+#ifndef AUX_BUTTON_FET_START_LEVEL
+    #ifdef MAX_1x7135
+        #define AUX_BUTTON_FET_START_LEVEL MAX_1x7135
+    #elif defined(MAX_REGULATED)
+        #define AUX_BUTTON_FET_START_LEVEL MAX_REGULATED
+    #elif defined(DEFAULT_LEVEL)
+        #define AUX_BUTTON_FET_START_LEVEL DEFAULT_LEVEL
+    #else
+        #define AUX_BUTTON_FET_START_LEVEL MAX_LEVEL
+    #endif
+#endif
+
 #ifdef HAS_AUX_LEDS
 inline void set_level_aux_leds(uint8_t level) {
     #ifdef USE_AUX_THRESHOLD_CONFIG
         #define AUX_BRIGHTNESS ((level > cfg.button_led_low_ramp_level) \
             << (level > cfg.button_led_high_ramp_level))
     #else
-        #define AUX_BRIGHTNESS ((level > 0) + (level > DEFAULT_LEVEL))
+        #define AUX_BRIGHTNESS ((level > 0) + (level > AUX_BUTTON_FET_START_LEVEL))
     #endif
     #ifdef USE_INDICATOR_LED_WHILE_RAMPING
         // use side-facing aux LEDs while main LEDs are on
@@ -70,7 +82,7 @@ inline void set_level_aux_rgb_leds(uint8_t level) {
                     (level > cfg.button_led_low_ramp_level)
                     << (level > cfg.button_led_high_ramp_level));
             #else
-            button_led_set((level > 0) + (level > DEFAULT_LEVEL));
+            button_led_set((level > 0) + (level > AUX_BUTTON_FET_START_LEVEL));
             #endif
         #endif
     }
