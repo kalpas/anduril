@@ -18,12 +18,9 @@
 #define RAMP_STYLE 1
 
 // The dual-7135 hardware shouldn't blink at the top of the ramp.
-#ifdef BLINK_AT_RAMP_CEIL
+
 #undef BLINK_AT_RAMP_CEIL
-#endif
-#ifdef BLINK_AT_RAMP_CEILING
 #undef BLINK_AT_RAMP_CEILING
-#endif
 
 // Use only the two moon levels in lockout mode, never manual memory.
 #ifdef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
@@ -40,6 +37,12 @@
 #undef DEFAULT_MANUAL_MEMORY_TIMER
 #endif
 #define DEFAULT_MANUAL_MEMORY_TIMER 5
+
+// Keep moon locked during an off-hold by default.
+#ifdef DEFAULT_DONT_RAMP_AFTER_MOON
+#undef DEFAULT_DONT_RAMP_AFTER_MOON
+#endif
+#define DEFAULT_DONT_RAMP_AFTER_MOON 1
 
 // doubled linear channel current (2x 7135) needs a new mixed-channel ramp
 // level_calc.py 5.7895 2 150 7135 1 0.1 260 FET 1 10 3000 --pwm dyn:74:4096:255:3
@@ -95,4 +98,3 @@
 
 // add a 500 ms dwell at the MAX_1x7135 crossover while smooth-ramping
 #define USE_RAMP_CROSSOVER_GATE
-
