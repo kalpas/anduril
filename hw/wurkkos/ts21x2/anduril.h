@@ -6,6 +6,41 @@
 
 #include "sofirn/sp36-t1616/anduril.h"
 
+// Prefer the advanced UI and discrete ramping out of the box.
+#ifdef SIMPLE_UI_ACTIVE
+#undef SIMPLE_UI_ACTIVE
+#endif
+#define SIMPLE_UI_ACTIVE 0
+
+#ifdef RAMP_STYLE
+#undef RAMP_STYLE
+#endif
+#define RAMP_STYLE 1
+
+// The dual-7135 hardware shouldn't blink at the top of the ramp.
+#ifdef BLINK_AT_RAMP_CEIL
+#undef BLINK_AT_RAMP_CEIL
+#endif
+#ifdef BLINK_AT_RAMP_CEILING
+#undef BLINK_AT_RAMP_CEILING
+#endif
+
+// Use only the two moon levels in lockout mode, never manual memory.
+#ifdef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
+#undef USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
+#endif
+
+// Enable hybrid manual memory by default at the MAX_1x7135 level.
+#ifdef DEFAULT_MANUAL_MEMORY
+#undef DEFAULT_MANUAL_MEMORY
+#endif
+#define DEFAULT_MANUAL_MEMORY MAX_1x7135
+
+#ifdef DEFAULT_MANUAL_MEMORY_TIMER
+#undef DEFAULT_MANUAL_MEMORY_TIMER
+#endif
+#define DEFAULT_MANUAL_MEMORY_TIMER 5
+
 // doubled linear channel current (2x 7135) needs a new mixed-channel ramp
 // level_calc.py 5.7895 2 150 7135 1 0.1 260 FET 1 10 3000 --pwm dyn:74:4096:255:3
 #undef PWM1_LEVELS
@@ -60,3 +95,4 @@
 
 // add a 500 ms dwell at the MAX_1x7135 crossover while smooth-ramping
 #define USE_RAMP_CROSSOVER_GATE
+
