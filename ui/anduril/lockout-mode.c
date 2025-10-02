@@ -20,18 +20,28 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         ((B_CLICK | B_PRESS) == (event & (B_CLICK | B_PRESS)))
         && (click_num <= 2)
     ) {
-        uint8_t lvl = cfg.ramp_floors[0];
-        // hold: lowest floor
-        if (1 == click_num) {  // 1st click
-            if (cfg.ramp_floors[1] < lvl) lvl = cfg.ramp_floors[1];
+        uint8_t low = cfg.ramp_floors[0];
+        uint8_t high = cfg.ramp_floors[1];
+        if (high < low) {
+            uint8_t tmp = high;
+            high = low;
+            low = tmp;
         }
-        // click, hold: highest floor (or manual mem level)
-        else {  // 2nd click
+
+        uint8_t lvl = low;
+        // hold: lowest floor
+        if (1 != click_num) {  // 2nd click
             #if defined(USE_MANUAL_MEMORY) && defined(USE_MANUAL_MEMORY_IN_LOCKOUT_MODE)
             if (cfg.manual_memory) lvl = cfg.manual_memory;
             else
             #endif
-            if (cfg.ramp_floors[1] > lvl) lvl = cfg.ramp_floors[1];
+            {
+                if (high <= low) {
+                    uint8_t next = nearest_level(low + 1);
+                    if (next > low) high = next;
+                }
+                if (high > low) lvl = high;
+            }
         }
         off_state_set_level(lvl);
     }
