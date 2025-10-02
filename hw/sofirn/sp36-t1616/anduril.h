@@ -15,7 +15,7 @@
 // lockout: blinking (3)
 #ifdef INDICATOR_LED_DEFAULT_MODE
 #undef INDICATOR_LED_DEFAULT_MODE
-#define INDICATOR_LED_DEFAULT_MODE ((3<<2) + 1)
+#define INDICATOR_LED_DEFAULT_MODE INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_LOW, INDICATOR_LED_MODE_BLINK)
 #endif
 
 // don't blink during the ramp; the button LED brightness is sufficient

@@ -5,9 +5,14 @@
 #pragma once
 
 #include "anduril/off-mode.h"
+#include "anduril/ramp-mode.h"
 
 #ifdef USE_SUNSET_TIMER
 #include "anduril/sunset-timer.h"
+#endif
+
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+#include "fsm/voltage.h"
 #endif
 
 // set level smooth maybe
@@ -31,7 +36,7 @@ uint8_t off_state(Event event, uint16_t arg) {
         #endif
         #ifdef USE_INDICATOR_LED
         // redundant, sleep tick does the same thing
-        //indicator_led_update(cfg.indicator_led_mode & 0x03, 0);
+        //indicator_led_update(indicator_led_get_off_mode(cfg.indicator_led_mode), 0);
         #elif defined(USE_AUX_RGB_LEDS)
         // redundant, sleep tick does the same thing
         //rgb_led_update(cfg.rgb_led_off_mode, 0);
@@ -42,6 +47,9 @@ uint8_t off_state(Event event, uint16_t arg) {
         // sleep while off  (lower power use)
         // (unless delay requested; give the ADC some time to catch up)
         if (! arg) { go_to_standby = 1; }
+#if defined(USE_LVP) && defined(USE_LVP_FROST)
+        voltage_frost_reset();
+#endif
         return EVENT_HANDLED;
     }
 
@@ -55,7 +63,7 @@ uint8_t off_state(Event event, uint16_t arg) {
             go_to_standby = 1;
             #ifdef USE_INDICATOR_LED
             // redundant, sleep tick does the same thing
-            //indicator_led_update(cfg.indicator_led_mode & 0x03, arg);
+            //indicator_led_update(indicator_led_get_off_mode(cfg.indicator_led_mode), arg);
             #elif defined(USE_AUX_RGB_LEDS)
             // redundant, sleep tick does the same thing
             //rgb_led_update(cfg.rgb_led_off_mode, arg);
@@ -76,7 +84,7 @@ uint8_t off_state(Event event, uint16_t arg) {
         }
         #endif  // ifdef USE_MANUAL_MEMORY_TIMER
         #ifdef USE_INDICATOR_LED
-        indicator_led_update(cfg.indicator_led_mode & 0x03, arg);
+        indicator_led_update(indicator_led_get_off_mode(cfg.indicator_led_mode), arg);
         #elif defined(USE_AUX_RGB_LEDS)
         rgb_led_update(cfg.rgb_led_off_mode, arg);
         #endif
@@ -95,6 +103,7 @@ uint8_t off_state(Event event, uint16_t arg) {
     #if (B_TIMING_ON == B_PRESS_T)
     // hold (initially): go to lowest level (floor), but allow abort for regular click
     else if (event == EV_click1_press) {
+        request_lowest_moon_level();
         off_state_set_level(nearest_level(1));
         return EVENT_HANDLED;
     }
@@ -110,8 +119,9 @@ uint8_t off_state(Event event, uint16_t arg) {
         } else
         #endif
         #else  // B_RELEASE_T or B_TIMEOUT_T
+        request_lowest_moon_level();
         off_state_set_level(nearest_level(1));
-        #endif
+#endif
         #ifdef USE_RAMP_AFTER_MOON_CONFIG
         if (cfg.dont_ramp_after_moon) {
             return EVENT_HANDLED;
@@ -121,6 +131,7 @@ uint8_t off_state(Event event, uint16_t arg) {
         // give the user time to release at moon level
         //if (arg >= HOLD_TIMEOUT) {  // smaller
         if (arg >= (!cfg.ramp_style) * HOLD_TIMEOUT) {  // more consistent
+            request_lowest_moon_level();
             set_state(steady_state, 1);
         }
         return EVENT_HANDLED;
@@ -128,6 +139,7 @@ uint8_t off_state(Event event, uint16_t arg) {
 
     // hold, release quickly: go to lowest level (floor)
     else if (event == EV_click1_hold_release) {
+        request_lowest_moon_level();
         set_state(steady_state, 1);
         return EVENT_HANDLED;
     }
@@ -149,13 +161,7 @@ uint8_t off_state(Event event, uint16_t arg) {
 
     // 1 click: regular mode
     else if (event == EV_1click) {
-        #if (B_TIMING_ON != B_TIMEOUT_T)
         set_state(steady_state, memorized_level);
-        #else
-        // FIXME: B_TIMEOUT_T breaks manual_memory and manual_memory_timer
-        //        (need to duplicate manual mem logic here, probably)
-        set_state(steady_state, memorized_level);
-        #endif
         return EVENT_HANDLED;
     }
 
@@ -267,18 +273,10 @@ uint8_t off_state(Event event, uint16_t arg) {
     #ifdef USE_INDICATOR_LED
     // 7 clicks: change indicator LED mode
     else if (event == EV_7clicks) {
-        uint8_t mode = (cfg.indicator_led_mode & 3) + 1;
-        #ifdef TICK_DURING_STANDBY
-        mode = mode & 3;
-        #else
-        mode = mode % 3;
-        #endif
-        #ifdef INDICATOR_LED_SKIP_LOW
-        if (mode == 1) { mode ++; }
-        #endif
-        cfg.indicator_led_mode = (cfg.indicator_led_mode & 0b11111100) | mode;
+        uint8_t mode = indicator_led_next_mode(indicator_led_get_off_mode(cfg.indicator_led_mode));
+        cfg.indicator_led_mode = indicator_led_set_off_mode(cfg.indicator_led_mode, mode);
         // redundant, sleep tick does the same thing
-        //indicator_led_update(cfg.indicator_led_mode & 0x03, arg);
+        //indicator_led_update(indicator_led_get_off_mode(cfg.indicator_led_mode), arg);
         save_config();
         return EVENT_HANDLED;
     }

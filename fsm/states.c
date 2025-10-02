@@ -82,6 +82,12 @@ uint8_t default_state(Event event, uint16_t arg) {
         low_voltage();
         return EVENT_HANDLED;
     }
+    #if defined(USE_LVP) && defined(USE_LVP_FROST)
+    else if (event == EV_voltage_frost_enable) {
+        voltage_frost_commit_enable();
+        return EVENT_HANDLED;
+    }
+    #endif
     #endif
 
     #if 0

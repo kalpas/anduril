@@ -31,5 +31,3 @@ void set_level_auxwht(uint8_t level) {
     rgb_led_set(0b010101 << !(!(level)));  // red+green+blue, high (level > 0) or low
 }
 
-bool gradual_tick_null(uint8_t gt) { return true; }  // do nothing
-

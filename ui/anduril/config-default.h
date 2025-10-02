@@ -174,6 +174,8 @@
 #define USE_LOCKOUT_MODE
 // should lockout mode function as a momentary moon mode?
 #define USE_MOON_DURING_LOCKOUT_MODE
+// should the higher lockout moon level use the memorized ramp level?
+#define USE_MANUAL_MEMORY_IN_LOCKOUT_MODE
 // add an optional setting to lock the light after being off for a while
 #define USE_AUTOLOCK
 

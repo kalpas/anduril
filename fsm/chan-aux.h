@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "gradual-null.h"
+
 #define NUM_AUX_CHANNEL_MODES  1
 
 // include / exclude field based on compile options
@@ -20,6 +22,4 @@
     }
 
 void set_level_aux(uint8_t level);
-
-bool gradual_tick_null(uint8_t gt);
 
