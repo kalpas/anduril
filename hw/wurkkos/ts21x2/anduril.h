@@ -18,6 +18,7 @@
 #define RAMP_STYLE 1
 
 // The dual-7135 hardware shouldn't blink at the top of the ramp.
+
 #undef BLINK_AT_RAMP_CEIL
 #undef BLINK_AT_RAMP_CEILING
 
@@ -95,3 +96,5 @@
 #define BLINK_AT_RAMP_MIDDLE
 #define BLINK_AT_RAMP_MIDDLE_1 MAX_1x7135
 
+// add a 500 ms dwell at the MAX_1x7135 crossover while smooth-ramping
+#define USE_RAMP_CROSSOVER_GATE

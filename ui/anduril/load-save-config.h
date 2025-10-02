@@ -140,9 +140,9 @@ Config cfg = {
     ///// aux LEDs
 
     #ifdef USE_INDICATOR_LED
-        // bits 2-3 control lockout mode
-        // bits 0-1 control "off" mode
-        // modes are: 0=off, 1=low, 2=high, 3=blinking (if TICK_DURING_STANDBY enabled)
+        // bits 3-5 control lockout mode
+        // bits 0-2 control "off" mode
+        // modes are: 0=off, 1=low, 2=high, 3=blink, 4=10s beacon (blink/beacon require TICK_DURING_STANDBY)
         .indicator_led_mode = INDICATOR_LED_DEFAULT_MODE,
     #endif
     #ifdef USE_AUX_RGB_LEDS

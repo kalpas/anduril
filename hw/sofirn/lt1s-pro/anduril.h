@@ -15,7 +15,7 @@
 // Low mode isn't bright enough to be useful on this light,
 // but at least it doesn't drain the battery 3X faster than moon mode.
 // (it seriously would be more practical to just use moon instead)
-#define INDICATOR_LED_DEFAULT_MODE ((3<<2) + 1)
+#define INDICATOR_LED_DEFAULT_MODE INDICATOR_LED_COMPOSE(INDICATOR_LED_MODE_LOW, INDICATOR_LED_MODE_BLINK)
 
 // channel modes...
 // CM_WHITE, CM_AUTO2, CM_AUTO3, CM_RED, CM_WHITE_RED

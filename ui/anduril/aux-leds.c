@@ -7,7 +7,14 @@
 
 
 #if defined(USE_INDICATOR_LED)
-void indicator_led_update(uint8_t mode, uint8_t tick) {
+#ifndef INDICATOR_BEACON_PERIOD_SECONDS
+#define INDICATOR_BEACON_PERIOD_SECONDS 10
+#endif
+#ifndef INDICATOR_BEACON_ON_TICKS
+#define INDICATOR_BEACON_ON_TICKS ((SLEEP_TICKS_PER_SECOND / 4) ? (SLEEP_TICKS_PER_SECOND / 4) : 1)
+#endif
+
+void indicator_led_update(uint8_t mode, uint16_t tick) {
     //uint8_t volts = voltage;  // save a few bytes by caching volatile value
     // turn off when battery is too low
     #ifdef DUAL_VOLTAGE_FLOOR
@@ -27,11 +34,10 @@ void indicator_led_update(uint8_t mode, uint8_t tick) {
     #endif
     //#endif
     // normal steady output, 0/1/2 = off / low / high
-    else if ((mode & 0b00001111) < 3) {
+    else if (mode <= INDICATOR_LED_MODE_HIGH) {
         indicator_led(mode);
     }
-    // beacon-like blinky mode
-    else {
+    else if (mode == INDICATOR_LED_MODE_BLINK) {
         #ifdef USE_OLD_BLINKING_INDICATOR
 
         // basic blink, 1/8th duty cycle
@@ -50,6 +56,19 @@ void indicator_led_update(uint8_t mode, uint8_t tick) {
         indicator_led(seq[tick & 15]);
 
         #endif  // ifdef USE_OLD_BLINKING_INDICATOR
+    }
+    else {
+        uint16_t period = INDICATOR_BEACON_PERIOD_SECONDS * SLEEP_TICKS_PER_SECOND;
+        uint16_t on_ticks = INDICATOR_BEACON_ON_TICKS;
+        if (! period) {
+            indicator_led(0);
+        }
+        else if ((tick % period) < on_ticks) {
+            indicator_led(2);
+        }
+        else {
+            indicator_led(0);
+        }
     }
 }
 #endif

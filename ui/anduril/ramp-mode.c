@@ -14,6 +14,19 @@
 #include "anduril/smooth-steps.h"
 #endif
 
+#ifdef USE_LOWEST_MOON_LEVEL
+static uint8_t force_lowest_next = 0;
+
+void request_lowest_moon_level(void) {
+    force_lowest_next = 1;
+}
+#endif
+
+#ifdef USE_RAMP_CROSSOVER_GATE
+static uint8_t crossover_gate_active = 0;
+static uint16_t crossover_gate_ticks = 0;
+#endif
+
 
 uint8_t steady_state(Event event, uint16_t arg) {
     static int8_t ramp_direction = 1;
@@ -107,6 +120,10 @@ uint8_t steady_state(Event event, uint16_t arg) {
         arg = nearest_level(arg);
         set_level_and_therm_target(arg);
         ramp_direction = 1;
+#ifdef USE_RAMP_CROSSOVER_GATE
+        crossover_gate_active = 0;
+        crossover_gate_ticks = 0;
+#endif
         return EVENT_HANDLED;
     }
     #if (B_TIMING_OFF == B_RELEASE_T)
@@ -158,7 +175,11 @@ uint8_t steady_state(Event event, uint16_t arg) {
             return EVENT_HANDLED;
         #ifdef USE_RAMP_SPEED_CONFIG
             // ramp slower if user configured things that way
-            if ((! cfg.ramp_style) && (arg % ramp_speed))
+            if ((! cfg.ramp_style) && (arg % ramp_speed)
+#ifdef USE_RAMP_CROSSOVER_GATE
+                && (! crossover_gate_active)
+#endif
+                )
                 return EVENT_HANDLED;
         #endif
         #ifdef USE_SMOOTH_STEPS
@@ -167,7 +188,11 @@ uint8_t steady_state(Event event, uint16_t arg) {
             // (like 2C for full turbo then 1H to smooth ramp down
             //  ... without this clause, it flickers because it trips
             //  the "blink at ramp ceil" clause below, over and over)
-            if (smooth_steps_in_progress) return EVENT_HANDLED;
+            if (smooth_steps_in_progress
+#ifdef USE_RAMP_CROSSOVER_GATE
+                && (! crossover_gate_active)
+#endif
+                ) return EVENT_HANDLED;
         #endif
         // fix ramp direction on first frame if necessary
         if (!arg) {
@@ -178,6 +203,10 @@ uint8_t steady_state(Event event, uint16_t arg) {
             // make it ramp up if already at min
             // (off->hold->stepped_min->release causes this state)
             else if (actual_level <= mode_min) { ramp_direction = 1; }
+#ifdef USE_RAMP_CROSSOVER_GATE
+            crossover_gate_active = 0;
+            crossover_gate_ticks = 0;
+#endif
         }
         // if the button is stuck, err on the side of safety and ramp down
         else if ((arg > TICKS_PER_SECOND * 5
@@ -202,8 +231,38 @@ uint8_t steady_state(Event event, uint16_t arg) {
             set_state(lockout_state, 0);
         }
         #endif
-        memorized_level = nearest_level((int16_t)actual_level \
-                          + (step_size * ramp_direction));
+        int16_t target = (int16_t)actual_level
+                         + (step_size * ramp_direction);
+        uint8_t planned_level = nearest_level(target);
+        uint8_t next_level = planned_level;
+#ifdef USE_RAMP_CROSSOVER_GATE
+        if ((! cfg.ramp_style) && (ramp_direction > 0)) {
+            if (! crossover_gate_active) {
+                if ((actual_level <= RAMP_CROSSOVER_GATE_LEVEL)
+                    && (next_level > RAMP_CROSSOVER_GATE_LEVEL)) {
+                    crossover_gate_active = 1;
+                    crossover_gate_ticks = 0;
+                    next_level = RAMP_CROSSOVER_GATE_LEVEL;
+                }
+            } else {
+                if (actual_level < RAMP_CROSSOVER_GATE_LEVEL) {
+                    next_level = RAMP_CROSSOVER_GATE_LEVEL;
+                } else if (crossover_gate_ticks < RAMP_CROSSOVER_GATE_TICKS) {
+                    crossover_gate_ticks++;
+                    next_level = RAMP_CROSSOVER_GATE_LEVEL;
+                } else {
+                    crossover_gate_active = 0;
+                    crossover_gate_ticks = 0;
+                    next_level = planned_level;
+                }
+            }
+        } else {
+            crossover_gate_active = 0;
+            crossover_gate_ticks = 0;
+            next_level = planned_level;
+        }
+#endif
+        memorized_level = next_level;
         #if defined(BLINK_AT_RAMP_CEIL) || defined(BLINK_AT_RAMP_MIDDLE)
         // only blink once for each threshold
         // FIXME: blinks at beginning of smooth_steps animation instead
@@ -227,6 +286,9 @@ uint8_t steady_state(Event event, uint16_t arg) {
                 || (memorized_level == mode_min)
                 #endif
                 )) {
+            #if defined(USE_SMOOTH_STEPS)
+            if (!smooth_steps_in_progress)
+            #endif
             blip();
         }
         #endif
@@ -257,6 +319,10 @@ uint8_t steady_state(Event event, uint16_t arg) {
         #ifdef START_AT_MEMORIZED_LEVEL
         save_config_wl();
         #endif
+#ifdef USE_RAMP_CROSSOVER_GATE
+        crossover_gate_active = 0;
+        crossover_gate_ticks = 0;
+#endif
         return EVENT_HANDLED;
     }
 
@@ -647,6 +713,28 @@ uint8_t nearest_level(int16_t target) {
 
     // ensure all globals are correct
     ramp_update_config();
+
+#ifdef USE_LOWEST_MOON_LEVEL
+    if (force_lowest_next) {
+        uint8_t lowest =
+        #ifdef USE_RAMP_CONFIG
+            cfg.ramp_floors[0]
+        #else
+            RAMP_SMOOTH_FLOOR
+        #endif
+        ;
+        #ifdef USE_RAMP_CONFIG
+            if (cfg.ramp_floors[1] < lowest) lowest = cfg.ramp_floors[1];
+            #ifdef USE_SIMPLE_UI
+                if (cfg.ramp_floors[2] < lowest) lowest = cfg.ramp_floors[2];
+            #endif
+        #endif
+        force_lowest_next = 0;
+        if (target <= lowest) {
+            return lowest;
+        }
+    }
+#endif
 
     // bounds check
     uint8_t mode_min = ramp_floor;

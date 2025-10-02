@@ -5,6 +5,7 @@
 #pragma once
 
 #include "anduril/lockout-mode.h"
+#include "anduril/ramp-mode.h"
 
 uint8_t lockout_state(Event event, uint16_t arg) {
     #ifdef USE_MOON_DURING_LOCKOUT_MODE
@@ -19,18 +20,28 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         ((B_CLICK | B_PRESS) == (event & (B_CLICK | B_PRESS)))
         && (click_num <= 2)
     ) {
-        uint8_t lvl = cfg.ramp_floors[0];
-        // hold: lowest floor
-        if (1 == click_num) {  // 1st click
-            if (cfg.ramp_floors[1] < lvl) lvl = cfg.ramp_floors[1];
+        uint8_t low = cfg.ramp_floors[0];
+        uint8_t high = cfg.ramp_floors[1];
+        if (high < low) {
+            uint8_t tmp = high;
+            high = low;
+            low = tmp;
         }
-        // click, hold: highest floor (or manual mem level)
-        else {  // 2nd click
-            #ifdef USE_MANUAL_MEMORY
+
+        uint8_t lvl = low;
+        // hold: lowest floor
+        if (1 != click_num) {  // 2nd click
+            #if defined(USE_MANUAL_MEMORY) && defined(USE_MANUAL_MEMORY_IN_LOCKOUT_MODE)
             if (cfg.manual_memory) lvl = cfg.manual_memory;
             else
             #endif
-            if (cfg.ramp_floors[1] > lvl) lvl = cfg.ramp_floors[1];
+            {
+                if (high <= low) {
+                    uint8_t next = nearest_level(low + 1);
+                    if (next > low) high = next;
+                }
+                if (high > low) lvl = high;
+            }
         }
         off_state_set_level(lvl);
     }
@@ -49,7 +60,7 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         ticks_since_on = 0;
         #ifdef USE_INDICATOR_LED
             // redundant, sleep tick does the same thing
-            // indicator_led_update(cfg.indicator_led_mode >> 2, 0);
+        // indicator_led_update(indicator_led_get_lockout_mode(cfg.indicator_led_mode), 0);
         #elif defined(USE_AUX_RGB_LEDS)
             rgb_led_update(cfg.rgb_led_lockout_mode, 0);
         #endif
@@ -60,7 +71,7 @@ uint8_t lockout_state(Event event, uint16_t arg) {
             go_to_standby = 1;
             #ifdef USE_INDICATOR_LED
             // redundant, sleep tick does the same thing
-            //indicator_led_update(cfg.indicator_led_mode >> 2, arg);
+            //indicator_led_update(indicator_led_get_lockout_mode(cfg.indicator_led_mode), arg);
             #elif defined(USE_AUX_RGB_LEDS)
             rgb_led_update(cfg.rgb_led_lockout_mode, arg);
             #endif
@@ -79,7 +90,7 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         }
         #endif  // ifdef USE_MANUAL_MEMORY_TIMER
         #if defined(USE_INDICATOR_LED)
-        indicator_led_update(cfg.indicator_led_mode >> 2, arg);
+        indicator_led_update(indicator_led_get_lockout_mode(cfg.indicator_led_mode), arg);
         #elif defined(USE_AUX_RGB_LEDS)
         rgb_led_update(cfg.rgb_led_lockout_mode, arg);
         #endif
@@ -114,6 +125,7 @@ uint8_t lockout_state(Event event, uint16_t arg) {
         // reset button sequence to avoid activating anything in ramp mode
         current_event = 0;
         // ... and back to ramp mode
+        request_lowest_moon_level();
         set_state(steady_state, 1);
         return EVENT_HANDLED;
     }
@@ -146,18 +158,10 @@ uint8_t lockout_state(Event event, uint16_t arg) {
     // 7 clicks: rotate through indicator LED modes (lockout mode)
     else if (event == EV_7clicks) {
         #if defined(USE_INDICATOR_LED)
-            uint8_t mode = cfg.indicator_led_mode >> 2;
-            #ifdef TICK_DURING_STANDBY
-            mode = (mode + 1) & 3;
-            #else
-            mode = (mode + 1) % 3;
-            #endif
-            #ifdef INDICATOR_LED_SKIP_LOW
-            if (mode == 1) { mode ++; }
-            #endif
-            cfg.indicator_led_mode = (mode << 2) + (cfg.indicator_led_mode & 0x03);
+            uint8_t mode = indicator_led_next_mode(indicator_led_get_lockout_mode(cfg.indicator_led_mode));
+            cfg.indicator_led_mode = indicator_led_set_lockout_mode(cfg.indicator_led_mode, mode);
             // redundant, sleep tick does the same thing
-            //indicator_led_update(cfg.indicator_led_mode >> 2, arg);
+            //indicator_led_update(indicator_led_get_lockout_mode(cfg.indicator_led_mode), arg);
         #elif defined(USE_AUX_RGB_LEDS)
         #endif
         save_config();
