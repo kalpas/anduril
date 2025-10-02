@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "gradual-null.h"
+
 #define RGB_AUX_ENUMS  \
     CM_AUXRED, \
     CM_AUXYEL, \
@@ -67,6 +69,4 @@ void set_level_auxcyn(uint8_t level);
 void set_level_auxblu(uint8_t level);
 void set_level_auxprp(uint8_t level);
 void set_level_auxwht(uint8_t level);
-
-bool gradual_tick_null(uint8_t gt);
 
